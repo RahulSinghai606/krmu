@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { canAccess, type ModuleKey } from "@/lib/access";
 import type { UserRole } from "@/lib/types";
 import { retrieveLive } from "@/lib/ai/knowledge";
-import { certEligibility, CERT_TYPES } from "@/lib/certificates";
+import { certEligibility, certHash, CERT_TYPES } from "@/lib/certificates";
 import { TIMETABLE, STUDENTS, FEE_COLLECTION_MONTHLY, CERTIFICATE_REQUESTS, UPCOMING_EXAMS, TRANSPORT_ROUTES, HOSTEL_ROOMS, NOTIFICATIONS, FACULTY, COURSES } from "@/lib/data";
 import { audit } from "@/lib/audit";
 
@@ -28,15 +28,31 @@ export interface Tool {
   run: (args: Record<string, unknown>, ctx: ToolCtx) => Promise<unknown>;
 }
 
+// Canonical module key → route (key matches the ModuleKey used for access checks).
 const MODULE_ROUTE: Record<string, string> = {
-  dashboard: "/dashboard", results: "/dashboard/examinations", examinations: "/dashboard/examinations",
-  marks: "/dashboard/examinations", fees: "/dashboard/fees", attendance: "/dashboard/attendance",
-  timetable: "/dashboard/timetable", registration: "/dashboard/registration", grievance: "/dashboard/grievance",
-  certificates: "/dashboard/certificates", students: "/dashboard/students", curriculum: "/dashboard/curriculum",
-  hr: "/dashboard/hr", hostel: "/dashboard/hostel", transport: "/dashboard/transport", mis: "/dashboard/mis",
-  notifications: "/dashboard/notifications", accreditation: "/dashboard/accreditation", documents: "/dashboard/documents",
-  access: "/dashboard/access", ai: "/dashboard/ai",
+  dashboard: "/dashboard", examinations: "/dashboard/examinations", fees: "/dashboard/fees",
+  attendance: "/dashboard/attendance", timetable: "/dashboard/timetable", registration: "/dashboard/registration",
+  grievance: "/dashboard/grievance", certificates: "/dashboard/certificates", students: "/dashboard/students",
+  curriculum: "/dashboard/curriculum", hr: "/dashboard/hr", hostel: "/dashboard/hostel", transport: "/dashboard/transport",
+  mis: "/dashboard/mis", notifications: "/dashboard/notifications", accreditation: "/dashboard/accreditation",
+  documents: "/dashboard/documents", access: "/dashboard/access", ai: "/dashboard/ai", aiops: "/dashboard/aiops",
+  committee: "/dashboard/committee", admissions: "/dashboard/admissions", "timetable-generator": "/dashboard/timetable-generator",
+  predictions: "/dashboard/predictions", approvals: "/dashboard/approvals", workflows: "/dashboard/workflows", calendar: "/dashboard/calendar",
 };
+// Spoken/typed synonyms → canonical module key.
+const MODULE_ALIAS: Record<string, string> = {
+  results: "examinations", marks: "examinations", exams: "examinations", grades: "examinations",
+  governance: "aiops", "governance dashboard": "aiops", "ai operations": "aiops", audit: "aiops",
+  admission: "admissions", "admission forensics": "admissions", forensics: "admissions", "document verification": "admissions",
+  "committee & governance": "committee", meetings: "committee", minutes: "committee",
+  "timetable prep": "timetable-generator", "timetable generator": "timetable-generator", "ai timetable prep": "timetable-generator", generator: "timetable-generator",
+  certificate: "certificates", documents_module: "documents", "fee portal": "fees", "fee": "fees",
+  student: "students", faculty: "hr", prediction: "predictions", approval: "approvals", workflow: "workflows",
+};
+function resolveModule(raw: string): string {
+  const m = raw.trim().toLowerCase();
+  return MODULE_ALIAS[m] || (MODULE_ROUTE[m] ? m : (MODULE_ALIAS[m.replace(/[-_\s]+/g, " ")] || m));
+}
 
 const SCHOOLS = ["SOET", "SMS", "SOL", "SoMeS", "SOA", "SoP", "SoS", "SoEd"];
 
@@ -766,6 +782,26 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "issue_certificate",
+    description: "For registrar/admin staff: issue & digitally sign a certificate for a named STUDENT (bonafide, transcript, migration, etc.). Verifies eligibility, then issues with a verification code. Use for 'issue a bonafide certificate for <student>', 'raise and issue a transcript for <student>'. Certificates are issued to students only.",
+    module: "certificates", write: true, needsApproval: false,
+    parameters: { type: "object", required: ["studentName", "type"], properties: { studentName: { type: "string" }, type: { type: "string", enum: CERT_TYPES }, purpose: { type: "string" } } },
+    run: async (a, ctx) => {
+      if (ctx.role === "student") return { error: "Only registrar/admin can issue certificates for others. Use request_certificate for your own." };
+      const q = String(a.studentName).trim().toLowerCase();
+      const stu = (await prisma.student.findMany()).find(s => s.name.toLowerCase() === q) || (await prisma.student.findMany()).find(s => s.name.toLowerCase().includes(q) || s.enrollmentNo.toLowerCase() === q);
+      if (!stu) return { error: `No student named "${a.studentName}" found. Certificates are issued to students only — the Dean/faculty are not certificate recipients.` };
+      const elig = certEligibility(stu);
+      if (!elig.clear) return { issued: false, student: stu.name, holds: elig.reasons, message: `Cannot issue — ${stu.name} has holds: ${elig.reasons.join(", ")}.` };
+      const id = `cert-${Date.now()}`;
+      const hash = certHash(id, stu.name, String(a.type));
+      await prisma.certificateRequest.create({
+        data: { id, studentId: stu.id, studentName: stu.name, type: String(a.type), purpose: String(a.purpose || ""), requestDate: new Date().toISOString().slice(0, 10), status: "issued", issueDate: new Date().toISOString().slice(0, 10), hash, signedBy: ctx.email },
+      });
+      return { issued: true, student: stu.name, type: a.type, verifyCode: hash, message: `${a.type} issued & digitally signed for ${stu.name}. Verification code ${hash}.`, source: "Certificates" };
+    },
+  },
+  {
     name: "get_action_items",
     description: "Committee/governance action items (tasks from meeting minutes), with owner, due date and status. Use for 'pending committee tasks', 'what actions are open', 'overdue tasks'.",
     module: "committee", write: false, needsApproval: false,
@@ -818,25 +854,24 @@ export const TOOLS: Tool[] = [
   // ─────────── CLIENT / SESSION actions (the browser executes; user's own session) ───────────
   {
     name: "open_screen",
-    description: "Navigate the user to a screen/module in the app. Use when the user wants to SEE or OPEN something — e.g. 'show my marks', 'open fee portal', 'mere attendance dikhao', 'le jao timetable pe'. Choose the closest module.",
+    description: "Navigate the user to a screen/module. Use when the user wants to SEE or OPEN something — 'show my marks', 'open governance', 'open committee', 'admission forensics', 'timetable prep'. Pass the module name the user said; synonyms are resolved automatically.",
     module: "dashboard", client: true,
     write: false, needsApproval: false,
     parameters: {
       type: "object", required: ["module"],
       properties: {
-        module: { type: "string", description: "One of: results, fees, attendance, timetable, registration, grievance, certificates, students, curriculum, hr, hostel, transport, mis, notifications, dashboard, ai" },
-        reason: { type: "string", description: "Short reason shown to user, e.g. 'Opening your fee statement'" },
+        module: { type: "string", description: "Screen name, e.g. results, fees, attendance, timetable, timetable-generator, registration, grievance, certificates, admissions, committee, governance, students, curriculum, hr, hostel, transport, mis, notifications, predictions, approvals, workflows, accreditation, documents, calendar, dashboard, ai" },
+        reason: { type: "string", description: "Short reason shown to user, e.g. 'Opening the Governance dashboard'" },
       },
     },
     run: async (a, ctx) => {
-      const mod = String(a.module || "").toLowerCase();
-      const key = (mod === "results" || mod === "marks") ? "examinations" : mod;
-      const to = MODULE_ROUTE[mod];
-      if (!to) return { error: `Unknown screen "${mod}"` };
-      if (key !== "dashboard" && key !== "ai" && !canAccess(ctx.role, key as ModuleKey)) {
-        return { error: `You don't have access to ${mod}.` };
+      const key = resolveModule(String(a.module || ""));
+      const to = MODULE_ROUTE[key];
+      if (!to) return { error: `Unknown screen "${a.module}"` };
+      if (key !== "dashboard" && key !== "ai" && key !== "calendar" && !canAccess(ctx.role, key as ModuleKey)) {
+        return { error: `You don't have access to ${key}.` };
       }
-      return { client: "navigate", to, label: a.reason || `Opening ${mod}`, source: "Navigation" };
+      return { client: "navigate", to, label: a.reason || `Opening ${key}`, source: "Navigation" };
     },
   },
   {
