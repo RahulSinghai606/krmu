@@ -75,5 +75,7 @@ export async function GET(req: NextRequest) {
   } catch { /* briefing is best-effort */ }
 
   const first = s.name?.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.) /, "").split(" ")[0];
-  return NextResponse.json({ greeting: `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, ${first}`, lines });
+  // Server may run in UTC (Vercel) — compute the hour in IST so the greeting matches the user's clock.
+  const hour = parseInt(new Intl.DateTimeFormat("en-IN", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }).format(new Date()), 10);
+  return NextResponse.json({ greeting: `Good ${hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}, ${first}`, lines });
 }
