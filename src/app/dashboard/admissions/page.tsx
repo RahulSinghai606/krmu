@@ -31,7 +31,7 @@ export default function AdmissionsPage() {
     if (!file) { toast.error("Choose an image first"); return; }
     setBusy(true); setResult(null);
     const fd = new FormData();
-    fd.append("image", file); fd.append("applicantName", applicantName || "Unknown Applicant"); fd.append("type", type);
+    fd.append("image", file); fd.append("applicantName", applicantName); fd.append("type", type);
     try {
       const res = await fetch("/api/admission", { method: "POST", body: fd });
       const d = await res.json();

@@ -52,21 +52,25 @@ Extract the printed fields and assess authenticity. Return JSON:
 {"fields":{"name":"","rollNo":"","board":"","year":"","marks":"","percentage":""},
  "legible":true|false,
  "visualAnomalies":[ "misaligned text","inconsistent fonts","erased/overwritten regions","mismatched seal/logo","irregular spacing" ...only those actually visible ],
- "authenticityConcerns":[ concrete reasons this document may be tampered or forged; empty if it looks genuine ]}`);
+ "authenticityConcerns":[ ONLY concrete, visible tampering evidence you can point to in the image (e.g. "marks digits use a different font", "white patch behind the percentage"). If you see none, return []. NEVER include disclaimers, hedging, or statements about what you cannot verify. ]}`);
     } catch { vision = { authenticityConcerns: [], visualAnomalies: [], legible: true }; }
   }
 
-  const concerns = vision.authenticityConcerns || [];
-  const anomalies = vision.visualAnomalies || [];
+  // Keep only CONCRETE tampering findings — the vision model sometimes returns hedging
+  // disclaimers ("cannot be confirmed without…", "no obvious tampering…") which are not evidence.
+  const HEDGE = /cannot|can't|unable|not something|without independent|no obvious|not apparent|cannot be confirmed|i can(?:no|')t|as an ai|verify conclusively|appears? genuine|looks genuine/i;
+  const concerns = (vision.authenticityConcerns || []).filter(c => c && !HEDGE.test(c));
+  const anomalies = (vision.visualAnomalies || []).filter(c => c && !HEDGE.test(c));
   let verdict: "clean" | "review" | "forgery";
   if (ela.score >= 68 || concerns.length >= 2) verdict = "forgery";
   else if (ela.score >= 46 || concerns.length >= 1 || anomalies.length >= 2) verdict = "review";
   else verdict = "clean";
 
-  // Auto-catch the applicant name from OCR when the form field is left blank.
+  // Auto-catch the applicant name from OCR when the form field is blank (or a placeholder).
   const ocrName = (vision.fields?.name || "").toString().trim();
-  const applicantName = formName || ocrName || "Unknown Applicant";
-  const findings = { elaScore: ela.score, extracted: vision.fields || {}, visualAnomalies: anomalies, authenticityConcerns: concerns, legible: vision.legible ?? true, nameSource: formName ? "entered" : ocrName ? "auto-extracted" : "unknown" };
+  const typedName = /^unknown/i.test(formName) ? "" : formName;
+  const applicantName = typedName || ocrName || "Unknown Applicant";
+  const findings = { elaScore: ela.score, extracted: vision.fields || {}, visualAnomalies: anomalies, authenticityConcerns: concerns, legible: vision.legible ?? true, nameSource: typedName ? "entered" : ocrName ? "auto-extracted" : "unknown" };
 
   const doc = await prisma.admissionDocument.create({
     data: {
