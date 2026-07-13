@@ -1,0 +1,285 @@
+// KRMU ERP — Prisma schema
+// Local dev uses SQLite (zero-server). For production Postgres:
+//   1. change provider to "postgresql"
+//   2. set DATABASE_URL to your Postgres connection string in .env
+//   3. run: npx prisma migrate dev
+// Array/enum fields are stored as JSON strings for SQLite portability.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id            String  @id
+  name          String
+  enrollmentNo  String  @unique
+  programme     String
+  batch         String
+  semester      Int
+  section       String
+  school        String
+  status        String
+  cgpa          Float
+  attendance    Int
+  feeDue        Int
+  phone         String
+  email         String
+  guardianName  String
+  guardianPhone String
+  address       String
+  dob           String
+  category      String
+  admissionDate String
+  fees          FeeRecord[]
+  grievances    Grievance[]
+
+  @@index([school])
+  @@index([programme])
+}
+
+model Faculty {
+  id             String @id
+  name           String
+  employeeId     String @unique
+  designation    String
+  department     String
+  school         String
+  email          String
+  phone          String
+  qualification  String
+  experience     Int
+  specialization String
+  status         String
+  joiningDate    String
+  salary         Int
+}
+
+model Course {
+  id           String @id
+  code         String @unique
+  name         String
+  credits      Int
+  type         String
+  semester     Int
+  programme    String
+  faculty      String
+  contactHours Int
+}
+
+model FeeRecord {
+  id          String  @id
+  studentId   String
+  studentName String
+  programme   String
+  semester    Int
+  feeHead     String
+  amount      Int
+  paid        Int
+  due         Int
+  dueDate     String
+  status      String
+  receiptNo   String?
+  paymentDate String?
+  paymentMode String?
+  student     Student @relation(fields: [studentId], references: [id])
+
+  @@index([status])
+}
+
+model Grievance {
+  id          String   @id
+  ticketNo    String   @unique
+  studentId   String
+  studentName String
+  category    String
+  subject     String
+  description String
+  status      String
+  priority    String
+  assignedTo  String
+  raisedDate  String
+  resolvedDate String?
+  comments    String   @default("[]") // JSON array of strings
+  student     Student  @relation(fields: [studentId], references: [id])
+}
+
+model Notification {
+  id              String @id
+  title           String
+  message         String
+  type            String
+  target          String
+  channels        String // JSON array
+  sentAt          String
+  sentBy          String
+  readCount       Int
+  totalRecipients Int
+}
+
+model TimetableSlot {
+  id          String @id
+  day         String
+  startTime   String
+  endTime     String
+  courseCode  String
+  courseName  String
+  facultyName String
+  room        String
+  section     String
+  type        String
+}
+
+model HostelRoom {
+  id        String @id
+  roomNo    String
+  block     String
+  type      String
+  capacity  Int
+  occupied  Int
+  floor     Int
+  amenities String // JSON array
+  status    String
+}
+
+model CertificateRequest {
+  id          String  @id
+  studentId   String
+  studentName String
+  type        String
+  purpose     String
+  requestDate String
+  status      String
+  issueDate   String?
+}
+
+model AttendanceRecord {
+  id          String @id @default(cuid())
+  studentId   String
+  studentName String
+  courseCode  String
+  courseName  String
+  date        String
+  status      String // present | absent | leave
+  markedBy    String
+  createdAt   String
+
+  @@unique([studentId, courseCode, date])
+  @@index([courseCode, date])
+}
+
+model ExamResult {
+  id          String @id @default(cuid())
+  studentId   String
+  studentName String
+  courseCode  String
+  courseName  String
+  semester    Int
+  internal    Int
+  external    Int
+  total       Int
+  grade       String
+  status      String // draft | published
+  updatedBy   String
+  updatedAt   String
+
+  @@unique([studentId, courseCode])
+  @@index([courseCode])
+}
+
+model Registration {
+  id            String  @id @default(cuid())
+  studentId     String
+  studentName   String
+  programme     String
+  semester      Int
+  courses       String  // JSON array of course codes
+  credits       Int
+  status        String  // submitted | advisor_approved | confirmed | rejected
+  submittedDate String
+  approvedBy    String?
+  remark        String?
+
+  @@unique([studentId, semester])
+}
+
+// §6.3.3 Institutional knowledge — policies/circulars, retrievable + index stays current on write.
+model Policy {
+  id        String @id @default(cuid())
+  title     String
+  category  String
+  text      String
+  updatedAt String
+}
+
+model AuditLog {
+  id     String  @id @default(cuid())
+  actor  String
+  role   String
+  action String
+  module String
+  detail String
+  at     String
+  byAi   Boolean @default(false) // §6.4 — AI actions audited as human actions, tagged
+  prompt String?                 // the prompt/trigger that initiated an AI action
+
+  @@index([module])
+}
+
+// §6.3.6 Observability — every AI interaction logged: cost, latency, grounding, refusals.
+model AiEvent {
+  id        String  @id @default(cuid())
+  at        String
+  actor     String
+  role      String
+  kind      String  // chat | tool | prediction | agent
+  tool      String?
+  prompt    String
+  summary   String
+  tokensIn  Int     @default(0)
+  tokensOut Int     @default(0)
+  latencyMs Int     @default(0)
+  grounded  Boolean @default(false)
+  refused   Boolean @default(false)
+
+  @@index([kind])
+  @@index([at])
+}
+
+// §6.4 Human-in-the-loop — AI-prepared writes/contacts wait here for an authorised approver.
+model PendingAction {
+  id          String  @id @default(cuid())
+  createdAt   String
+  requestedBy String  // acting user email
+  role        String
+  tool        String
+  params      String  // JSON args
+  summary     String  // human-readable description of what will happen
+  status      String  @default("pending") // pending | approved | rejected
+  decidedBy   String?
+  decidedAt   String?
+  result      String?
+
+  @@index([status])
+}
+
+// §6.1.3 Predictions stored with inputs + basis + timestamp, advisory, back-testable.
+model Prediction {
+  id        String  @id @default(cuid())
+  at        String
+  kind      String  // dropout_risk | fee_forecast | attendance_shortfall | result_trend | enrolment
+  subjectId String  // e.g. studentId, programme, or "institution"
+  subject   String
+  score     Float   // 0..1 risk or projected value
+  band      String  // low | medium | high  (or label)
+  basis     String  // JSON of the inputs + weights that produced it
+  confidence Float  @default(0.7)
+  actual    String? // filled later for back-testing
+
+  @@index([kind])
+}
