@@ -1,8 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function GatePage() {
+  return <Suspense fallback={null}><GateInner /></Suspense>;
+}
+
+function GateInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [password, setPassword] = useState("");
