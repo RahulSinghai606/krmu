@@ -43,4 +43,8 @@ export const EVAL_CASES: EvalCase[] = [
     expect: { mustCallAny: ["get_low_attendance_students", "query_students", "get_at_risk_students"], mustCite: true } },
   { id: "data-quality", category: "accuracy", message: "Run a data-quality scan on student records.", ...REG,
     expect: { mustCallAny: ["data_quality_scan"] } },
+  { id: "cert-request", category: "accuracy", message: "I need a bonafide certificate for my visa application.", ...STU,
+    expect: { mustCallAny: ["request_certificate", "check_certificate_eligibility"] } },
+  { id: "flagged-docs", category: "accuracy", message: "Show me the flagged admission documents.", ...REG,
+    expect: { mustCallAny: ["list_flagged_admission_documents"] } },
 ];

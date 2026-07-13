@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { canAccess, type ModuleKey } from "@/lib/access";
 import type { UserRole } from "@/lib/types";
 import { retrieveLive } from "@/lib/ai/knowledge";
+import { certEligibility, CERT_TYPES } from "@/lib/certificates";
 import { TIMETABLE, STUDENTS, FEE_COLLECTION_MONTHLY, CERTIFICATE_REQUESTS, UPCOMING_EXAMS, TRANSPORT_ROUTES, HOSTEL_ROOMS, NOTIFICATIONS, FACULTY, COURSES } from "@/lib/data";
 import { audit } from "@/lib/audit";
 
@@ -728,6 +729,76 @@ export const TOOLS: Tool[] = [
     module: "notifications", write: false, needsApproval: false,
     parameters: { type: "object", properties: {} },
     run: async () => ({ count: NOTIFICATIONS.length, notifications: NOTIFICATIONS.map(n => ({ title: n.title, audience: n.target, sentBy: n.sentBy, sentAt: n.sentAt, readPct: Math.round((n.readCount / n.totalRecipients) * 100) })), source: "Notifications" }),
+  },
+
+  // ─────────── ZERO-BACK-OFFICE: Certificates, Committee, Admissions ───────────
+  {
+    name: "check_certificate_eligibility",
+    description: "For the signed-in student: whether they are eligible to be issued a certificate/document (checks enrolment, fees, library dues, disciplinary holds). Use before requesting one, or for 'can I get a bonafide certificate'.",
+    module: "certificates", selfOnly: true, write: false, needsApproval: false,
+    parameters: { type: "object", properties: {} },
+    run: async (_a, ctx) => {
+      const me = await prisma.student.findFirst({ where: { email: ctx.email } });
+      if (!me) return { error: "No student record." };
+      const e = certEligibility(me);
+      return { eligible: e.clear, holds: e.reasons, message: e.clear ? "You are eligible — no holds." : `On hold: ${e.reasons.join(", ")}`, source: "SIS · Fees · Library · Discipline" };
+    },
+  },
+  {
+    name: "request_certificate",
+    description: "File a certificate/document request for the signed-in student (bonafide, transcript, migration, duplicate marksheet, character, fee-structure). Use for 'I need a bonafide certificate for my visa'. It checks eligibility and files the request; the registrar then issues & signs it.",
+    module: "certificates", selfOnly: true, write: true, needsApproval: false,
+    parameters: { type: "object", required: ["type"], properties: { type: { type: "string", enum: CERT_TYPES }, purpose: { type: "string" } } },
+    run: async (a, ctx) => {
+      const me = await prisma.student.findFirst({ where: { email: ctx.email } });
+      if (!me) return { error: "No student record." };
+      const e = certEligibility(me);
+      const row = await prisma.certificateRequest.create({
+        data: {
+          id: `cert-${Date.now()}`, studentId: me.id, studentName: me.name, type: String(a.type), purpose: String(a.purpose || ""),
+          requestDate: new Date().toISOString().slice(0, 10), status: e.clear ? "pending" : "on-hold",
+          holdReasons: e.clear ? null : JSON.stringify(e.reasons),
+        },
+      });
+      return e.clear
+        ? { filed: true, ticket: row.id, status: "pending registrar signature", type: row.type, note: "Filed. The registrar will issue & digitally sign it — typically within minutes.", source: "Certificates" }
+        : { filed: true, ticket: row.id, status: "on-hold", holds: e.reasons, note: `Filed but on hold until you clear: ${e.reasons.join(", ")}.`, source: "Certificates" };
+    },
+  },
+  {
+    name: "get_action_items",
+    description: "Committee/governance action items (tasks from meeting minutes), with owner, due date and status. Use for 'pending committee tasks', 'what actions are open', 'overdue tasks'.",
+    module: "committee", write: false, needsApproval: false,
+    parameters: { type: "object", properties: { onlyOverdue: { type: "boolean" } } },
+    run: async (a) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = await prisma.actionItem.findMany({ where: { status: "open" } });
+      const mapped = rows.map(r => ({ title: r.title, assignee: r.assignee, dueDate: r.dueDate, overdue: !!r.dueDate && r.dueDate < today }));
+      const list = a.onlyOverdue ? mapped.filter(x => x.overdue) : mapped;
+      return { count: list.length, actionItems: list, source: "Committee & Governance" };
+    },
+  },
+  {
+    name: "chase_overdue_tasks",
+    description: "Send reminder notices to owners of overdue committee action items. Prepares only — routes to the approval queue. Use for 'chase the overdue committee tasks'.",
+    module: "committee", write: true, needsApproval: true,
+    parameters: { type: "object", properties: {} },
+    run: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = await prisma.actionItem.findMany({ where: { status: "open" } });
+      const overdue = rows.filter(r => r.dueDate && r.dueDate < today);
+      return { prepared: true, summary: `Reminders to ${overdue.length} owner(s) of overdue committee tasks`, count: overdue.length };
+    },
+  },
+  {
+    name: "list_flagged_admission_documents",
+    description: "Admission documents flagged by the forensics check (review or suspected forgery), with the reason. Use for 'flagged admission documents', 'suspected forged marksheets', 'admission fraud checks'.",
+    module: "admissions", write: false, needsApproval: false,
+    parameters: { type: "object", properties: {} },
+    run: async () => {
+      const rows = await prisma.admissionDocument.findMany({ where: { verdict: { in: ["review", "forgery"] } }, orderBy: { createdAt: "desc" } });
+      return { count: rows.length, flagged: rows.map(r => ({ applicant: r.applicantName, type: r.type, verdict: r.verdict, elaScore: r.elaScore, concerns: JSON.parse(r.findings || "{}").authenticityConcerns || [] })), source: "Admissions · document forensics" };
+    },
   },
 
   // ─────────── KNOWLEDGE (RAG) — available to all roles ───────────

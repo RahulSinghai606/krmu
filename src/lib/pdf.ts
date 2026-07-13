@@ -125,3 +125,41 @@ export function printFeeStatement(studentName: string, programme: string, semest
   `;
   return open(shell(`KRMU Fee Statement — ${studentName}`, inner));
 }
+
+interface CertLike {
+  type: string; studentName: string; enrollmentNo?: string; programme?: string;
+  purpose?: string; issueDate?: string | null; hash?: string | null; signedBy?: string | null;
+}
+
+// Issued, digitally-verifiable certificate on university stationery.
+export function printCertificate(c: CertLike): boolean {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const verifyUrl = c.hash ? `${origin}/verify/${c.hash}` : "";
+  const inner = `
+    <div class="doctype" style="text-align:center;margin:6px 0 22px">
+      <div class="t" style="color:#1565C0;font-size:16px;letter-spacing:2px">${c.type.toUpperCase()}</div>
+    </div>
+    <p style="font-size:14px;line-height:2;margin-top:10px">
+      This is to certify that <b>${c.studentName}</b>${c.enrollmentNo ? ` (Enrolment No. <b>${c.enrollmentNo}</b>)` : ""}
+      ${c.programme ? `is a bonafide student of <b>${c.programme}</b> at` : "is a bonafide member of"}
+      K.R. Mangalam University, Gurugram.
+    </p>
+    ${c.purpose ? `<p style="font-size:13px;line-height:1.9;margin-top:10px">This certificate is issued for the purpose of <b>${c.purpose}</b>.</p>` : ""}
+    <p style="font-size:12.5px;color:#555;margin-top:10px">The student is in good standing with no outstanding academic, financial, library or disciplinary holds as on the date of issue.</p>
+
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:52px">
+      <div>
+        ${c.hash ? `<div style="border:1.5px solid #0F9D58;border-radius:8px;padding:8px 12px;display:inline-block">
+          <div style="font-size:9px;letter-spacing:1px;color:#0F9D58;text-transform:uppercase;font-weight:700">Digitally Verified</div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:2px;color:#0A1628">${c.hash}</div>
+          <div style="font-size:8.5px;color:#8a93a5;margin-top:2px">Verify at ${verifyUrl}</div>
+        </div>` : ""}
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:cursive;font-size:20px;color:#1565C0">R. Kumar</div>
+        <div style="border-top:1px solid #0A1628;padding-top:5px;font-size:11px;font-weight:700;width:180px">Registrar</div>
+        <div style="font-size:10px;color:#737373">${c.issueDate || ""}</div>
+      </div>
+    </div>`;
+  return open(shell(c.type, inner));
+}

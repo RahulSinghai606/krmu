@@ -5,18 +5,19 @@ export type ModuleKey =
   | "dashboard" | "mis" | "ai" | "notifications" | "approvals" | "aiops" | "workflows" | "predictions" | "calendar"
   | "students" | "curriculum" | "registration" | "timetable" | "timetable-generator" | "attendance" | "examinations"
   | "fees" | "hr" | "hostel" | "transport" | "grievance"
-  | "certificates" | "accreditation" | "documents" | "access" | "designsystem";
+  | "certificates" | "accreditation" | "documents" | "access" | "designsystem"
+  | "committee" | "admissions";
 
 // Which modules each role may open. Enforced by sidebar (visibility) AND route guard (access).
 export const ACCESS: Record<UserRole, ModuleKey[]> = {
-  admin: ["dashboard", "mis", "ai", "aiops", "approvals", "workflows", "predictions", "notifications", "students", "curriculum", "registration", "timetable", "timetable-generator", "attendance", "examinations", "fees", "hr", "hostel", "transport", "grievance", "certificates", "accreditation", "documents", "access", "designsystem"],
-  registrar: ["dashboard", "mis", "ai", "aiops", "approvals", "workflows", "predictions", "notifications", "students", "curriculum", "registration", "timetable", "timetable-generator", "examinations", "grievance", "certificates", "accreditation", "documents"],
-  dean: ["dashboard", "mis", "ai", "approvals", "workflows", "predictions", "notifications", "students", "curriculum", "registration", "attendance", "examinations", "hr", "grievance", "accreditation"],
-  hod: ["dashboard", "ai", "approvals", "workflows", "predictions", "notifications", "students", "curriculum", "timetable", "attendance", "examinations", "hr", "grievance"],
+  admin: ["dashboard", "mis", "ai", "aiops", "approvals", "workflows", "predictions", "notifications", "students", "curriculum", "registration", "timetable", "timetable-generator", "attendance", "examinations", "fees", "hr", "hostel", "transport", "grievance", "certificates", "accreditation", "documents", "access", "designsystem", "committee", "admissions"],
+  registrar: ["dashboard", "mis", "ai", "aiops", "approvals", "workflows", "predictions", "notifications", "students", "curriculum", "registration", "timetable", "timetable-generator", "examinations", "grievance", "certificates", "accreditation", "documents", "committee", "admissions"],
+  dean: ["dashboard", "mis", "ai", "approvals", "workflows", "predictions", "notifications", "students", "curriculum", "registration", "attendance", "examinations", "hr", "grievance", "accreditation", "committee", "admissions"],
+  hod: ["dashboard", "ai", "approvals", "workflows", "predictions", "notifications", "students", "curriculum", "timetable", "attendance", "examinations", "hr", "grievance", "committee"],
   faculty: ["dashboard", "ai", "timetable", "attendance", "examinations", "students"],
   student: ["dashboard", "ai", "examinations", "attendance", "fees", "registration", "timetable", "grievance", "certificates"],
   finance: ["dashboard", "mis", "ai", "approvals", "workflows", "predictions", "notifications", "students", "fees", "hr", "transport"],
-  exam_officer: ["dashboard", "mis", "ai", "approvals", "workflows", "students", "examinations", "timetable", "certificates"],
+  exam_officer: ["dashboard", "mis", "ai", "approvals", "workflows", "students", "examinations", "timetable", "certificates", "admissions"],
   hostel_warden: ["dashboard", "ai", "students", "hostel", "grievance"],
 };
 

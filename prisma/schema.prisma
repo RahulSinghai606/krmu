@@ -36,6 +36,8 @@ model Student {
   dob           String
   category      String
   admissionDate String
+  libraryDue    Int      @default(0)
+  disciplinaryFlag Boolean @default(false)
   fees          FeeRecord[]
   grievances    Grievance[]
 
@@ -156,6 +158,59 @@ model CertificateRequest {
   requestDate String
   status      String
   issueDate   String?
+  hash        String?   // SHA-256 of the issued document → verifiable at /verify
+  signedBy    String?
+  holdReasons String?   // JSON array of blocking reasons if rejected/blocked
+}
+
+// ── Committee & governance (Module 18/20) ──
+model Committee {
+  id      String @id @default(cuid())
+  name    String
+  members String  // JSON
+  meetings Meeting[]
+}
+
+model Meeting {
+  id          String @id @default(cuid())
+  committeeId String
+  committee   Committee @relation(fields: [committeeId], references: [id])
+  title       String
+  date        String
+  minutesText String
+  processedAt String?
+  decisions   Decision[]
+  actionItems ActionItem[]
+}
+
+model Decision {
+  id        String @id @default(cuid())
+  meetingId String
+  meeting   Meeting @relation(fields: [meetingId], references: [id])
+  text      String
+}
+
+model ActionItem {
+  id         String @id @default(cuid())
+  meetingId  String
+  meeting    Meeting @relation(fields: [meetingId], references: [id])
+  title      String
+  assignee   String
+  dueDate    String
+  status     String  @default("open")   // open | done
+  remindedAt String?
+}
+
+// ── Admission document forensics (Module 2c/13d) ──
+model AdmissionDocument {
+  id            String @id @default(cuid())
+  applicantName String
+  type          String   // marksheet | domicile | entrance
+  imageName     String?
+  elaScore      Float    @default(0)
+  verdict       String   @default("pending")  // clean | review | forgery | pending
+  findings      String?  // JSON: extracted fields + flags
+  createdAt     String
 }
 
 model AttendanceRecord {

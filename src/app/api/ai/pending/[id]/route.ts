@@ -30,6 +30,13 @@ async function execute(tool: string, params: Record<string, unknown>, approver: 
       const r = await prisma.examResult.updateMany({ where: { status: "draft" }, data: { status: "published" } });
       return `Published ${r.count} draft result(s).`;
     }
+    case "chase_overdue_tasks": {
+      const today = new Date().toISOString().slice(0, 10);
+      const rows = await prisma.actionItem.findMany({ where: { status: "open" } });
+      const overdue = rows.filter(r => r.dueDate && r.dueDate < today);
+      for (const t of overdue) await prisma.actionItem.update({ where: { id: t.id }, data: { remindedAt: new Date().toISOString() } });
+      return `Reminders sent to ${overdue.length} owner(s) of overdue committee tasks.`;
+    }
     default:
       return "Action approved.";
   }

@@ -55,6 +55,8 @@ const NAV: { group: string; items: { key: ModuleKey; label: string; icon: string
     group: "Administration",
     items: [
       { key: "certificates", label: "Certificates", icon: "award", path: "/dashboard/certificates" },
+      { key: "admissions", label: "Admission Forensics", icon: "shield", path: "/dashboard/admissions" },
+      { key: "committee", label: "Committee & Governance", icon: "clipboard-check", path: "/dashboard/committee" },
       { key: "accreditation", label: "Accreditation", icon: "shield", path: "/dashboard/accreditation" },
       { key: "documents", label: "Documents", icon: "folder", path: "/dashboard/documents" },
       { key: "access", label: "Access Control", icon: "lock", path: "/dashboard/access" },

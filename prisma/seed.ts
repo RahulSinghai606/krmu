@@ -125,6 +125,44 @@ async function main() {
     ],
   });
 
+  // ── Zero-Back-Office seed: holds, committee, admission forensics ──
+  await prisma.actionItem.deleteMany();
+  await prisma.decision.deleteMany();
+  await prisma.meeting.deleteMany();
+  await prisma.committee.deleteMany();
+  await prisma.admissionDocument.deleteMany();
+  await prisma.certificateRequest.deleteMany();
+
+  // Give a couple of students holds so eligibility checks are demonstrable.
+  await prisma.student.updateMany({ where: { enrollmentNo: "KRMU2024CSE002" }, data: { libraryDue: 1200 } });     // Arjun — library due
+  await prisma.student.updateMany({ where: { enrollmentNo: "KRMU2023ECE045" }, data: { disciplinaryFlag: true } }); // Rohit — disciplinary hold
+
+  // A processed committee meeting with decisions + action items (one overdue).
+  const council = await prisma.committee.create({ data: { name: "Academic Council", members: JSON.stringify(["Registrar", "Dean SOET", "HOD CSE"]) } });
+  await prisma.meeting.create({
+    data: {
+      committeeId: council.id, title: "Academic Council Meeting", date: "2026-07-05", processedAt: now,
+      minutesText: "Reviewed Sem-5 electives and assessment weightage.",
+      decisions: { create: [
+        { text: "Machine Learning elective to get one additional section next term." },
+        { text: "Internal assessment weightage raised from 30% to 40%." },
+      ] },
+      actionItems: { create: [
+        { title: "Submit revised ML syllabus", assignee: "Dr. Rajeev Sharma", dueDate: "2026-07-10", status: "open" },   // overdue vs seed date
+        { title: "Procure 20 oscilloscopes", assignee: "HOD ECE", dueDate: "2026-08-10", status: "open" },
+        { title: "Publish amended assessment policy", assignee: "Registrar Office", dueDate: "2026-07-20", status: "open" },
+      ] },
+    },
+  });
+
+  // Admission forensics history (so the queue + AI 'flagged documents' have data pre-demo).
+  await prisma.admissionDocument.createMany({
+    data: [
+      { id: "adm-1", applicantName: "Rohan Mehta", type: "marksheet", elaScore: 22, verdict: "clean", findings: JSON.stringify({ elaScore: 22, extracted: { name: "Rohan Mehta", board: "CBSE", percentage: "88%" }, authenticityConcerns: [], visualAnomalies: [] }), createdAt: now },
+      { id: "adm-2", applicantName: "Sameer Khan", type: "marksheet", elaScore: 74, verdict: "forgery", findings: JSON.stringify({ elaScore: 74, extracted: { name: "Sameer Khan", board: "State Board", percentage: "94%" }, authenticityConcerns: ["marks field shows re-compression halo", "font of percentage differs from rest"], visualAnomalies: ["inconsistent fonts", "erased/overwritten regions"] }), createdAt: now },
+    ],
+  });
+
   const counts = {
     students: await prisma.student.count(),
     faculty: await prisma.faculty.count(),

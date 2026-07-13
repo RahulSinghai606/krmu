@@ -9,8 +9,8 @@ export function middleware(req: NextRequest) {
   // session auth, and internal server-to-server calls (e.g. the eval harness) don't carry
   // the gate cookie — so let all /api through here.
   if (pathname.startsWith("/api")) return NextResponse.next();
-  // Always allow the gate page itself.
-  if (pathname.startsWith("/gate")) return NextResponse.next();
+  // Always allow the gate page + the public document-verification page.
+  if (pathname.startsWith("/gate") || pathname.startsWith("/verify")) return NextResponse.next();
 
   if (req.cookies.get("krmu_gate")?.value === GATE_TOKEN) return NextResponse.next();
 
