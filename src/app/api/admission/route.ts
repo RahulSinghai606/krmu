@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   const form = await req.formData();
   const file = form.get("image") as File | null;
-  const applicantName = String(form.get("applicantName") || "Unknown Applicant");
+  const formName = String(form.get("applicantName") || "").trim();
   const type = String(form.get("type") || "marksheet");
   if (!file) return NextResponse.json({ error: "image required" }, { status: 400 });
 
@@ -63,7 +63,10 @@ Extract the printed fields and assess authenticity. Return JSON:
   else if (ela.score >= 46 || concerns.length >= 1 || anomalies.length >= 2) verdict = "review";
   else verdict = "clean";
 
-  const findings = { elaScore: ela.score, extracted: vision.fields || {}, visualAnomalies: anomalies, authenticityConcerns: concerns, legible: vision.legible ?? true };
+  // Auto-catch the applicant name from OCR when the form field is left blank.
+  const ocrName = (vision.fields?.name || "").toString().trim();
+  const applicantName = formName || ocrName || "Unknown Applicant";
+  const findings = { elaScore: ela.score, extracted: vision.fields || {}, visualAnomalies: anomalies, authenticityConcerns: concerns, legible: vision.legible ?? true, nameSource: formName ? "entered" : ocrName ? "auto-extracted" : "unknown" };
 
   const doc = await prisma.admissionDocument.create({
     data: {

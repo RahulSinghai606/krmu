@@ -35,7 +35,7 @@ export default function AdmissionsPage() {
     try {
       const res = await fetch("/api/admission", { method: "POST", body: fd });
       const d = await res.json();
-      if (res.ok) { setResult(d); toast.success("Analysed", VERDICT[d.verdict]?.label || d.verdict); load(); }
+      if (res.ok) { setResult(d); if (!applicantName && d.document?.applicantName) setApplicantName(d.document.applicantName); toast.success("Analysed", `${d.document?.applicantName || "Document"} · ${VERDICT[d.verdict]?.label || d.verdict}`); load(); }
       else toast.error("Failed", d.error);
     } catch { toast.error("Failed", "Network error"); }
     finally { setBusy(false); }
