@@ -163,6 +163,32 @@ async function main() {
     ],
   });
 
+  // ── Admission funnel leads (Module 2) ──
+  await prisma.lead.deleteMany();
+  const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
+  await prisma.lead.createMany({
+    data: [
+      { id: "ld-1", name: "Aarav Malhotra", programme: "B.Tech CSE", source: "referral", stage: "application", contactedCount: 2, lastContactAt: d(5), phone: "+91-9811100001", createdAt: d(7) },
+      { id: "ld-2", name: "Ishita Rao", programme: "B.Tech AI & ML", source: "website", stage: "enquiry", contactedCount: 0, phone: "+91-9811100002", createdAt: d(3) },
+      { id: "ld-3", name: "Kabir Sethi", programme: "MBA", source: "fair", stage: "application", contactedCount: 1, lastContactAt: d(9), phone: "+91-9811100003", createdAt: d(12) },
+      { id: "ld-4", name: "Ananya Nair", programme: "B.Tech CSE", source: "referral", stage: "enquiry", contactedCount: 0, phone: "+91-9811100004", createdAt: d(2) },
+      { id: "ld-5", name: "Rohan Gupta", programme: "BBA", source: "social", stage: "enquiry", contactedCount: 1, lastContactAt: d(14), phone: "+91-9811100005", createdAt: d(21) },
+      { id: "ld-6", name: "Meera Iyer", programme: "B.Tech AI & ML", source: "referral", stage: "application", contactedCount: 3, lastContactAt: d(1), phone: "+91-9811100006", createdAt: d(10) },
+      { id: "ld-7", name: "Dev Sharma", programme: "B.Tech ECE", source: "website", stage: "enquiry", contactedCount: 0, phone: "+91-9811100007", createdAt: d(18) },
+      { id: "ld-8", name: "Sara Khan", programme: "MBA", source: "website", stage: "enquiry", contactedCount: 2, lastContactAt: d(6), phone: "+91-9811100008", createdAt: d(8) },
+      { id: "ld-9", name: "Vivaan Reddy", programme: "B.Tech CSE", source: "fair", stage: "admitted", contactedCount: 4, lastContactAt: d(4), phone: "+91-9811100009", createdAt: d(30), convertedAt: d(4) },
+      { id: "ld-10", name: "Tara Bose", programme: "B.Tech ME", source: "social", stage: "lost", contactedCount: 2, lastContactAt: d(20), phone: "+91-9811100010", createdAt: d(35), lostReason: "chose another university" },
+      { id: "ld-11", name: "Aryan Verma", programme: "B.Tech CSE", source: "referral", stage: "enquiry", contactedCount: 0, phone: "+91-9811100011", createdAt: d(1) },
+      { id: "ld-12", name: "Nisha Pillai", programme: "BBA", source: "fair", stage: "application", contactedCount: 1, lastContactAt: d(11), phone: "+91-9811100012", createdAt: d(15) },
+      { id: "ld-13", name: "Yash Chauhan", programme: "B.Tech ECE", source: "social", stage: "enquiry", contactedCount: 0, phone: "+91-9811100013", createdAt: d(25) },
+      { id: "ld-14", name: "Diya Kapoor", programme: "B.Tech AI & ML", source: "website", stage: "application", contactedCount: 2, lastContactAt: d(7), phone: "+91-9811100014", createdAt: d(9) },
+      { id: "ld-15", name: "Kunal Joshi", programme: "MBA", source: "referral", stage: "enquiry", contactedCount: 1, lastContactAt: d(13), phone: "+91-9811100015", createdAt: d(16) },
+      { id: "ld-16", name: "Riya Menon", programme: "B.Tech CSE", source: "fair", stage: "admitted", contactedCount: 3, lastContactAt: d(6), phone: "+91-9811100016", createdAt: d(28), convertedAt: d(6) },
+      { id: "ld-17", name: "Arnav Sinha", programme: "B.Tech ME", source: "website", stage: "enquiry", contactedCount: 0, phone: "+91-9811100017", createdAt: d(4) },
+      { id: "ld-18", name: "Pooja Desai", programme: "B.Tech AI & ML", source: "referral", stage: "application", contactedCount: 2, lastContactAt: d(3), phone: "+91-9811100018", createdAt: d(6) },
+    ],
+  });
+
   const counts = {
     students: await prisma.student.count(),
     faculty: await prisma.faculty.count(),

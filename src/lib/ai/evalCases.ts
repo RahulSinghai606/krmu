@@ -47,4 +47,10 @@ export const EVAL_CASES: EvalCase[] = [
     expect: { mustCallAny: ["request_certificate", "check_certificate_eligibility"] } },
   { id: "flagged-docs", category: "accuracy", message: "Show me the flagged admission documents.", ...REG,
     expect: { mustCallAny: ["list_flagged_admission_documents"] } },
+  { id: "who-to-call", category: "accuracy", message: "Who should I call today from the admission leads?", ...REG,
+    expect: { mustCallAny: ["who_to_call_today"] } },
+  { id: "program-health", category: "accuracy", message: "Which programmes are bleeding students and why?", ...REG,
+    expect: { mustCallAny: ["get_program_health"] } },
+  { id: "risk-profile", category: "accuracy", message: "Give me the risk profile for Rahul Pandey.", ...REG,
+    expect: { mustCallAny: ["get_student_risk_profile", "get_student_record"] } },
 ];

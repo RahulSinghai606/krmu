@@ -55,6 +55,7 @@ const NAV: { group: string; items: { key: ModuleKey; label: string; icon: string
     group: "Administration",
     items: [
       { key: "certificates", label: "Certificates", icon: "award", path: "/dashboard/certificates" },
+      { key: "success", label: "Student Success", icon: "trending", path: "/dashboard/success" },
       { key: "admissions", label: "Admission Forensics", icon: "shield", path: "/dashboard/admissions" },
       { key: "committee", label: "Committee & Governance", icon: "clipboard-check", path: "/dashboard/committee" },
       { key: "accreditation", label: "Accreditation", icon: "shield", path: "/dashboard/accreditation" },

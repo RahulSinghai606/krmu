@@ -8,6 +8,8 @@ import { canAccess, type ModuleKey } from "@/lib/access";
 import type { UserRole } from "@/lib/types";
 import { retrieveLive } from "@/lib/ai/knowledge";
 import { certEligibility, certHash, CERT_TYPES } from "@/lib/certificates";
+import { scoreLead, callPriority, daysSince } from "@/lib/leads";
+import { azureChat } from "@/lib/ai/azure";
 import { TIMETABLE, STUDENTS, FEE_COLLECTION_MONTHLY, CERTIFICATE_REQUESTS, UPCOMING_EXAMS, TRANSPORT_ROUTES, HOSTEL_ROOMS, NOTIFICATIONS, FACULTY, COURSES } from "@/lib/data";
 import { audit } from "@/lib/audit";
 
@@ -38,6 +40,7 @@ const MODULE_ROUTE: Record<string, string> = {
   documents: "/dashboard/documents", access: "/dashboard/access", ai: "/dashboard/ai", aiops: "/dashboard/aiops",
   committee: "/dashboard/committee", admissions: "/dashboard/admissions", "timetable-generator": "/dashboard/timetable-generator",
   predictions: "/dashboard/predictions", approvals: "/dashboard/approvals", workflows: "/dashboard/workflows", calendar: "/dashboard/calendar",
+  success: "/dashboard/success",
 };
 // Spoken/typed synonyms → canonical module key.
 const MODULE_ALIAS: Record<string, string> = {
@@ -48,6 +51,7 @@ const MODULE_ALIAS: Record<string, string> = {
   "timetable prep": "timetable-generator", "timetable generator": "timetable-generator", "ai timetable prep": "timetable-generator", generator: "timetable-generator",
   certificate: "certificates", documents_module: "documents", "fee portal": "fees", "fee": "fees",
   student: "students", faculty: "hr", prediction: "predictions", approval: "approvals", workflow: "workflows",
+  "student success": "success", funnel: "success", "admission funnel": "success", cockpit: "success", "leadership cockpit": "success", leads: "success",
 };
 function resolveModule(raw: string): string {
   const m = raw.trim().toLowerCase();
@@ -745,6 +749,116 @@ export const TOOLS: Tool[] = [
     module: "notifications", write: false, needsApproval: false,
     parameters: { type: "object", properties: {} },
     run: async () => ({ count: NOTIFICATIONS.length, notifications: NOTIFICATIONS.map(n => ({ title: n.title, audience: n.target, sentBy: n.sentBy, sentAt: n.sentAt, readPct: Math.round((n.readCount / n.totalRecipients) * 100) })), source: "Notifications" }),
+  },
+
+  // ─────────── STUDENT SUCCESS INTELLIGENCE: Funnel · Early-warning · Cockpit ───────────
+  {
+    name: "get_admission_funnel",
+    description: "Admission funnel health — counts by stage (enquiry→application→admitted→lost), conversion rate, and breakdown by source and programme. Use for 'admission funnel', 'conversion rate', 'how many leads/enquiries'.",
+    module: "admissions", write: false, needsApproval: false,
+    parameters: { type: "object", properties: {} },
+    run: async () => {
+      const leads = await prisma.lead.findMany();
+      const by = (k: "stage" | "source" | "programme") => leads.reduce((m, l) => { m[l[k]] = (m[l[k]] || 0) + 1; return m; }, {} as Record<string, number>);
+      const admitted = leads.filter(l => l.stage === "admitted").length;
+      const active = leads.filter(l => l.stage !== "lost").length;
+      return { total: leads.length, byStage: by("stage"), bySource: by("source"), byProgramme: by("programme"),
+        conversionPct: active ? Math.round((admitted / leads.length) * 100) : 0, source: "Admissions CRM" };
+    },
+  },
+  {
+    name: "who_to_call_today",
+    description: "The highest-priority admission leads a counselor should call today, each with the reason (hot source, applied, going cold, overdue for contact). Use for 'who should I call today', 'priority leads', 'hot leads to follow up'.",
+    module: "admissions", write: false, needsApproval: false,
+    parameters: { type: "object", properties: { limit: { type: "number" } } },
+    run: async (a) => {
+      const now = Date.now();
+      const leads = await prisma.lead.findMany({ where: { stage: { in: ["enquiry", "application"] } } });
+      const scored = leads.map(l => { const { score, reasons } = scoreLead(l, now); return { ...l, score, reasons, priority: callPriority({ ...l, score }, now), lastContactedDays: daysSince(l.lastContactAt, now) }; })
+        .sort((x, y) => y.priority - x.priority)
+        .slice(0, Math.min(Number(a.limit) || 8, 20))
+        .map(l => ({ name: l.name, programme: l.programme, source: l.source, stage: l.stage, propensity: l.score, phone: l.phone, lastContacted: l.lastContactedDays === null ? "never" : `${l.lastContactedDays}d ago`, why: l.reasons.join(", ") }));
+      return { count: scored.length, callList: scored, source: "Admissions CRM · conversion model" };
+    },
+  },
+  {
+    name: "draft_lead_followup",
+    description: "Draft a personalized follow-up message (email/SMS) to nudge an admission lead toward converting. Prepares it for approval before sending. Use for 'draft a follow-up for <lead name>'.",
+    module: "admissions", write: true, needsApproval: true,
+    parameters: { type: "object", required: ["leadName"], properties: { leadName: { type: "string" }, channel: { type: "string", enum: ["email", "sms"] } } },
+    run: async (a) => {
+      const q = String(a.leadName).trim().toLowerCase();
+      const lead = (await prisma.lead.findMany()).find(l => l.name.toLowerCase() === q) || (await prisma.lead.findMany()).find(l => l.name.toLowerCase().includes(q));
+      if (!lead) return { error: `No lead named "${a.leadName}".` };
+      let draft = "";
+      try {
+        draft = await azureChat(
+          "You write warm, concise, personalized admission follow-up messages for K.R. Mangalam University. 90 words max, one clear call to action. No placeholders.",
+          `Lead: ${lead.name}, interested in ${lead.programme}, source ${lead.source}, stage ${lead.stage}. Channel: ${a.channel || "email"}. Write the follow-up message.`, 500);
+      } catch { draft = `Dear ${lead.name}, thank you for your interest in ${lead.programme} at K.R. Mangalam University. Our admissions team would love to help you complete your application — may we call you this week?`; }
+      return { prepared: true, leadName: lead.name, channel: a.channel || "email", draft, summary: `${a.channel || "email"} follow-up to ${lead.name} (${lead.programme})` };
+    },
+  },
+  {
+    name: "get_student_risk_profile",
+    description: "Early-warning risk profile for ONE student — fuses attendance, fee-payment delay and latest marks into a risk band with the specific drivers and an estimated lead time before it shows up in results. Use for 'risk profile for <name>', 'why is <name> at risk'.",
+    module: "students", write: false, needsApproval: false,
+    parameters: { type: "object", required: ["name"], properties: { name: { type: "string" } } },
+    run: async (a) => {
+      const q = String(a.name).trim().toLowerCase();
+      const s = (await prisma.student.findMany()).find(x => x.name.toLowerCase() === q) || (await prisma.student.findMany()).find(x => x.name.toLowerCase().includes(q));
+      if (!s) return { error: `No student named "${a.name}".` };
+      const fees = await prisma.feeRecord.findMany({ where: { studentId: s.id, due: { gt: 0 } } });
+      const marks = await prisma.examResult.findMany({ where: { studentId: s.id } });
+      const avgMark = marks.length ? Math.round(marks.reduce((x, m) => x + m.total, 0) / marks.length) : null;
+      const drivers: string[] = [];
+      if (s.attendance < 75) drivers.push(`attendance ${s.attendance}% (below 75%)`);
+      if (fees.length) drivers.push(`fee dues ₹${fees.reduce((x, f) => x + f.due, 0).toLocaleString("en-IN")} pending`);
+      if (avgMark !== null && avgMark < 50) drivers.push(`weak marks (avg ${avgMark})`);
+      if (s.cgpa < 6) drivers.push(`low CGPA ${s.cgpa}`);
+      const severity = (s.attendance < 65 ? 2 : s.attendance < 75 ? 1 : 0) + (fees.length ? 1 : 0) + (avgMark !== null && avgMark < 50 ? 1 : 0);
+      const band = severity >= 3 ? "high" : severity >= 1 ? "medium" : "low";
+      const weeks = band === "high" ? "8–10 weeks" : band === "medium" ? "10–14 weeks" : "no near-term risk";
+      return { student: s.name, programme: s.programme, band, drivers: drivers.length ? drivers : ["no leading-risk indicators"], leadTimeBeforeImpact: weeks, source: "SIS · Attendance · Fees · Examinations" };
+    },
+  },
+  {
+    name: "draft_intervention_plan",
+    description: "Draft a complete intervention BUNDLE for an at-risk student — mentor assignment, fee-restructuring proposal (if dues), and a parent notification — routed together for approval. Use for 'draft an intervention for <name>', 'help <name>'.",
+    module: "students", write: true, needsApproval: true,
+    parameters: { type: "object", required: ["name"], properties: { name: { type: "string" } } },
+    run: async (a) => {
+      const q = String(a.name).trim().toLowerCase();
+      const s = (await prisma.student.findMany()).find(x => x.name.toLowerCase() === q) || (await prisma.student.findMany()).find(x => x.name.toLowerCase().includes(q));
+      if (!s) return { error: `No student named "${a.name}".` };
+      const items: string[] = ["Assign a faculty mentor and schedule a check-in"];
+      if (s.feeDue > 0) items.push(`Offer a 3-instalment plan for ₹${s.feeDue.toLocaleString("en-IN")} dues`);
+      if (s.attendance < 75) items.push("Attendance-improvement counselling");
+      items.push("Notify parent/guardian with a supportive update");
+      return { prepared: true, student: s.name, plan: items, summary: `Intervention bundle for ${s.name}: ${items.length} actions` };
+    },
+  },
+  {
+    name: "get_program_health",
+    description: "Leadership cockpit — per-programme health: enrolment, at-risk count, average attendance, pass rate, fee-collection and dropout-risk, ranked to surface which programmes are 'bleeding' students and why. Use for 'which programmes are bleeding students', 'programme health', 'which courses are struggling'.",
+    module: "mis", write: false, needsApproval: false,
+    parameters: { type: "object", properties: { programme: { type: "string" } } },
+    run: async (a) => {
+      const students = await prisma.student.findMany(a.programme ? { where: { programme: String(a.programme) } } : undefined);
+      const results = await prisma.examResult.findMany({ where: { status: "published" } });
+      const groups: Record<string, typeof students> = {};
+      students.forEach(s => { (groups[s.programme] ||= []).push(s); });
+      const rows = Object.entries(groups).map(([programme, list]) => {
+        const atRisk = list.filter(s => s.attendance < 75 || s.cgpa < 6 || s.feeDue > 50000).length;
+        const avgAtt = Math.round(list.reduce((x, s) => x + s.attendance, 0) / list.length);
+        const dues = list.filter(s => s.feeDue > 0).length;
+        const progResults = results.filter(r => list.some(s => s.id === r.studentId));
+        const passRate = progResults.length ? Math.round(progResults.filter(r => r.total >= 45).length / progResults.length * 100) : null;
+        const concerns = [avgAtt < 75 ? `avg attendance ${avgAtt}%` : null, atRisk ? `${atRisk} at-risk` : null, dues ? `${dues} with dues` : null, passRate !== null && passRate < 80 ? `pass rate ${passRate}%` : null].filter(Boolean);
+        return { programme, enrolled: list.length, atRisk, avgAttendance: avgAtt, passRate, withDues: dues, healthScore: 100 - atRisk * 12 - (avgAtt < 75 ? 15 : 0), concerns };
+      }).sort((x, y) => x.healthScore - y.healthScore);
+      return { programmes: rows, mostAtRisk: rows[0]?.programme, source: "SIS · Attendance · Examinations · Fees" };
+    },
   },
 
   // ─────────── ZERO-BACK-OFFICE: Certificates, Committee, Admissions ───────────

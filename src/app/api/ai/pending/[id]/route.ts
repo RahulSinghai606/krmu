@@ -37,6 +37,21 @@ async function execute(tool: string, params: Record<string, unknown>, approver: 
       for (const t of overdue) await prisma.actionItem.update({ where: { id: t.id }, data: { remindedAt: new Date().toISOString() } });
       return `Reminders sent to ${overdue.length} owner(s) of overdue committee tasks.`;
     }
+    case "draft_lead_followup": {
+      const q = String(params.leadName || "").toLowerCase();
+      const lead = (await prisma.lead.findMany()).find(l => l.name.toLowerCase().includes(q));
+      if (!lead) return "Lead not found.";
+      await prisma.lead.update({ where: { id: lead.id }, data: { contactedCount: lead.contactedCount + 1, lastContactAt: new Date().toISOString() } });
+      await prisma.notification.create({ data: { id: `n-${Date.now()}`, title: "Admission follow-up sent", message: `Personalized ${params.channel || "email"} follow-up to ${lead.name} (${lead.programme}).`, type: "info", target: "admissions", channels: JSON.stringify([String(params.channel || "email")]), sentAt: new Date().toISOString(), sentBy: approver, readCount: 0, totalRecipients: 1 } });
+      return `Follow-up sent to ${lead.name}; marked contacted.`;
+    }
+    case "draft_intervention_plan": {
+      const q = String(params.name || "").toLowerCase();
+      const s = (await prisma.student.findMany()).find(x => x.name.toLowerCase().includes(q));
+      if (!s) return "Student not found.";
+      await prisma.notification.create({ data: { id: `n-${Date.now()}`, title: "Student intervention actioned", message: `Mentor assigned for ${s.name}; parent/guardian notified${s.feeDue > 0 ? "; fee-restructuring proposed" : ""}.`, type: "info", target: "faculty", channels: JSON.stringify(["email", "app"]), sentAt: new Date().toISOString(), sentBy: approver, readCount: 0, totalRecipients: 1 } });
+      return `Intervention actioned for ${s.name}: mentor assigned, parent notified${s.feeDue > 0 ? ", fee plan proposed" : ""}.`;
+    }
     default:
       return "Action approved.";
   }

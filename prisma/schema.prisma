@@ -163,6 +163,24 @@ model CertificateRequest {
   holdReasons String?   // JSON array of blocking reasons if rejected/blocked
 }
 
+// ── Admission funnel (Module 2) — enquiry → application → admitted ──
+model Lead {
+  id             String  @id @default(cuid())
+  name           String
+  programme      String
+  source         String  // website | referral | fair | social
+  stage          String  // enquiry | application | admitted | lost
+  score          Int     @default(0)
+  contactedCount Int     @default(0)
+  lastContactAt  String?
+  phone          String
+  email          String?
+  notes          String?
+  lostReason     String?
+  createdAt      String
+  convertedAt    String?
+}
+
 // ── Committee & governance (Module 18/20) ──
 model Committee {
   id      String @id @default(cuid())
