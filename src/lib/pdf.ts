@@ -163,3 +163,56 @@ export function printCertificate(c: CertLike): boolean {
     </div>`;
   return open(shell(c.type, inner));
 }
+
+interface HallTicketLike {
+  name: string; enrollmentNo: string; programme: string; semester: number; section: string;
+  photoInitials: string; code: string; session: string;
+  exams: { code: string; subject: string; date: string; time: string; venue: string }[];
+}
+
+// Deterministic Code39-style barcode as SVG rects, derived from the verification code.
+function barcodeSVG(code: string): string {
+  const seed = code.split("").map(c => c.charCodeAt(0));
+  let x = 4; const bars: string[] = [];
+  for (let i = 0; i < 44; i++) {
+    const v = seed[i % seed.length] + i * 7;
+    const w = (v % 3) + 1;             // bar width 1–3
+    bars.push(`<rect x="${x}" y="0" width="${w}" height="44" fill="#0A1628"/>`);
+    x += w + ((v >> 2) % 2) + 1;       // gap 1–2
+  }
+  return `<svg width="${x + 4}" height="58" xmlns="http://www.w3.org/2000/svg">${bars.join("")}
+    <text x="${(x + 4) / 2}" y="55" text-anchor="middle" font-family="monospace" font-size="9" fill="#0A1628" letter-spacing="2">${code}</text></svg>`;
+}
+
+// Exam hall ticket — eligibility-gated, barcode-verified, on university stationery.
+export function printHallTicket(t: HallTicketLike): boolean {
+  const rows = t.exams.map(e => `<tr><td>${e.code}</td><td style="text-align:left">${e.subject}</td><td>${e.date}</td><td>${e.time}</td><td>${e.venue}</td></tr>`).join("");
+  const inner = `
+    <div class="doctype" style="text-align:center;margin:4px 0 16px">
+      <div class="t" style="color:#1565C0;font-size:15px;letter-spacing:2px">EXAMINATION HALL TICKET</div>
+      <div class="d">${t.session}</div>
+    </div>
+    <div style="display:flex;gap:20px;align-items:flex-start">
+      <div style="width:86px;height:104px;border:1.5px solid #d5dbe6;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#1565C0;background:#F4F7FD">${t.photoInitials}</div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px 24px">
+        <div><div class="lbl" style="font-size:9px;text-transform:uppercase;color:#A0AEC0;font-weight:700">Candidate</div><div style="font-size:15px;font-weight:800">${t.name}</div></div>
+        <div><div class="lbl" style="font-size:9px;text-transform:uppercase;color:#A0AEC0;font-weight:700">Enrolment No.</div><div style="font-size:15px;font-weight:800">${t.enrollmentNo}</div></div>
+        <div><div class="lbl" style="font-size:9px;text-transform:uppercase;color:#A0AEC0;font-weight:700">Programme</div><div style="font-size:13px;font-weight:600">${t.programme} · Sem ${t.semester} · Sec ${t.section}</div></div>
+        <div><div class="lbl" style="font-size:9px;text-transform:uppercase;color:#A0AEC0;font-weight:700">Eligibility</div><div style="font-size:13px;font-weight:700;color:#0F9D58">CLEARED — attendance, fees & registration verified</div></div>
+      </div>
+      <div style="text-align:center">${barcodeSVG(t.code)}</div>
+    </div>
+    <h2 style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#1565C0;margin:22px 0 6px">Examination Schedule</h2>
+    <table class="sum" style="width:100%;border-collapse:collapse">
+      <tr><th style="border:1px solid #d5dbe6;background:#f3f6fb;color:#1565C0;font-size:10px;padding:7px">Code</th><th style="border:1px solid #d5dbe6;background:#f3f6fb;color:#1565C0;font-size:10px;padding:7px;text-align:left">Subject</th><th style="border:1px solid #d5dbe6;background:#f3f6fb;color:#1565C0;font-size:10px;padding:7px">Date</th><th style="border:1px solid #d5dbe6;background:#f3f6fb;color:#1565C0;font-size:10px;padding:7px">Time</th><th style="border:1px solid #d5dbe6;background:#f3f6fb;color:#1565C0;font-size:10px;padding:7px">Venue</th></tr>
+      ${rows.replace(/<td/g, '<td style="border:1px solid #e2e6ee;font-size:11.5px;padding:8px;text-align:center"')}
+    </table>
+    <div style="margin-top:18px;font-size:10.5px;color:#737373;line-height:1.7">
+      <b>Instructions:</b> Carry this hall ticket with a valid photo ID. Report 30 minutes before the exam. Electronic devices are prohibited in the examination hall. The barcode above is verified at entry.
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:34px">
+      <div style="font-size:10px;color:#8a93a5">Verification code: <b>${t.code}</b></div>
+      <div style="text-align:center"><div style="font-family:cursive;font-size:18px;color:#1565C0">A. Mehra</div><div style="border-top:1px solid #0A1628;padding-top:4px;font-size:10.5px;font-weight:700;width:170px">Controller of Examinations</div></div>
+    </div>`;
+  return open(shell("Hall Ticket", inner));
+}

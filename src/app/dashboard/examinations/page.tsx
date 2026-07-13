@@ -91,7 +91,12 @@ export default function ExaminationsPage() {
             <div className="page-hero-sub fade-up fade-up-1">End Semester · January 2025 · Exam Cycle Active</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-gold btn-sm cursor-hover">Generate Hall Tickets</button>
+            <button onClick={async () => {
+              const res = await fetch("/api/hallticket", { method: "POST" });
+              const d = await res.json();
+              if (res.ok) toast.success("Hall tickets released", `${d.eligible} eligible students notified — downloadable from My Results`);
+              else toast.error("Failed", d.error);
+            }} className="btn btn-gold btn-sm cursor-hover">Generate Hall Tickets</button>
             <button className="btn btn-sm cursor-hover" style={{ background: "rgba(255,255,255,0.1)", color: "white" }}>Publish Results</button>
           </div>
         </div>

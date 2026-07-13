@@ -4,7 +4,7 @@ import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
 import { Modal } from "@/components/ui/Modal";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { printFeeReceipt, printFeeStatement } from "@/lib/pdf";
+import { printFeeReceipt, printFeeStatement, printHallTicket } from "@/lib/pdf";
 
 const GRADE_HEX: Record<string, string> = { O: "#0F9D58", "A+": "#22A06B", A: "#1565C0", "B+": "#2E7BD6", B: "#F5A623", C: "#E8730A", F: "#C8102E" };
 
@@ -53,12 +53,29 @@ export function StudentSelfView({ view }: { view: "fees" | "attendance" | "resul
     finally { setSaving(false); }
   };
 
+  const downloadHallTicket = async () => {
+    try {
+      const res = await fetch("/api/hallticket");
+      const d = await res.json();
+      if (res.ok && d.eligible) printHallTicket(d.ticket);
+      else if (res.ok) toast.error("Not eligible for hall ticket", (d.blockers || []).join(", "));
+      else toast.error("Failed", d.error);
+    } catch { toast.error("Failed", "Network error"); }
+  };
+
   return (
     <div style={{ minHeight: "100vh" }}>
       <div className="page-hero">
-        <div className="reveal-wrap"><span className="reveal-inner page-hero-title">{titles[view]}</span></div>
-        <div className="page-hero-sub fade-up fade-up-1">
-          {me?.student ? `${me.student.name} · ${me.student.enrollmentNo} · ${me.student.programme} Sem ${me.student.semester}` : subs[view]}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+          <div>
+            <div className="reveal-wrap"><span className="reveal-inner page-hero-title">{titles[view]}</span></div>
+            <div className="page-hero-sub fade-up fade-up-1">
+              {me?.student ? `${me.student.name} · ${me.student.enrollmentNo} · ${me.student.programme} Sem ${me.student.semester}` : subs[view]}
+            </div>
+          </div>
+          {view === "results" && (
+            <button onClick={downloadHallTicket} className="btn btn-gold btn-sm cursor-hover">⬇ Download Hall Ticket</button>
+          )}
         </div>
       </div>
 

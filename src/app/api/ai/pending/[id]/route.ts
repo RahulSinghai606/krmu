@@ -37,6 +37,17 @@ async function execute(tool: string, params: Record<string, unknown>, approver: 
       for (const t of overdue) await prisma.actionItem.update({ where: { id: t.id }, data: { remindedAt: new Date().toISOString() } });
       return `Reminders sent to ${overdue.length} owner(s) of overdue committee tasks.`;
     }
+    case "generate_hall_tickets": {
+      const [students, dueFees] = await Promise.all([prisma.student.findMany(), prisma.feeRecord.findMany({ where: { due: { gt: 0 } } })]);
+      const due = new Set(dueFees.map(f => f.studentId));
+      const eligible = students.filter(x => x.attendance >= 75 && !due.has(x.id));
+      await prisma.notification.create({
+        data: { id: `n-${Date.now()}`, title: "Hall tickets released", type: "info",
+          message: `Hall tickets for the End Semester Examination are available — download from My Results.`,
+          target: "students", channels: JSON.stringify(["email", "app"]), sentAt: new Date().toISOString(), sentBy: approver, readCount: 0, totalRecipients: eligible.length },
+      });
+      return `Hall tickets released — ${eligible.length} eligible students notified; they can download from My Results.`;
+    }
     case "draft_lead_followup": {
       const q = String(params.leadName || "").toLowerCase();
       const lead = (await prisma.lead.findMany()).find(l => l.name.toLowerCase().includes(q));
