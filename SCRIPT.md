@@ -4,6 +4,17 @@
 
 ---
 
+## 0. Access (live)
+
+- **URL:** https://krmu-erp.vercel.app
+- **Password gate:** `kelltonisbest` (protects all content from scrapers; branded KRMU screen)
+- Then pick any of **9 roles** to log in.
+- Hosted on **Vercel**; code on GitHub.
+
+> If asked why the password screen: "It's a private preview — the gate keeps our confidential POC content from being scraped or indexed. One shared password, then the full app."
+
+---
+
 ## 1. Tech Stack (say this if asked "what is it built on")
 
 | Layer | Technology |
@@ -161,7 +172,28 @@ Four guarantees baked in (§6 governance):
 
 ---
 
-## 5. Beyond the 6 — proves it generalizes (mention, optionally show)
+### UC7 · AI-Assisted Timetable Prep  *(the head-of-university showpiece)*
+**Log in as:** Admin (or Registrar) → sidebar **AI Timetable Prep**
+**Say:** "Building a whole semester's timetable by hand takes weeks. Watch this."
+
+**Steps to show:**
+1. **Setup** — programme, branch, semester, section, **no. of students** (auto-splits into sections at 60 each), **target credits**, working days, **semester start/end dates**, and an editable **holidays list** (national holidays prefilled).
+2. **Courses & Credits** — table of subjects: type (lecture/lab/tutorial), **credits → auto hours/week**. Live credits-vs-target chip.
+3. **Generate** → loading screen → a **clash-free weekly grid** (color-coded, faculty + room per cell, lab blocks span two periods).
+4. Flip to **Full Semester** view → **every teaching day across ~6 months**, weekends + holidays **auto-excluded**, plus **hours-delivered-vs-required per course** (holidays that hit a course's day show as lost hours), month-by-month day list.
+5. **Download PDF** → one **KRMU-branded** document: weekly grid → credit structure → semester overview → hours delivery → holidays → **day-by-day detailed table (date, time, course, credits, faculty, room)** → registrar sign-off.
+6. **Refine with AI** — type plain English: *"Reduce Discrete Maths to 3 credits and Dr. Rajeev Sharma is unavailable on Monday"* → it edits the plan, **regenerates**, and lists exactly what changed.
+
+**Under the hood:**
+- The **schedule is built by a deterministic constraint engine** (guarantees no clashes, correct credit→hours) — the **AI only interprets your plain-English change requests** into structured edits. Correct *and* flexible.
+- Semester expansion (day-by-day, holiday exclusion, hours tracking) is computed, not guessed.
+
+**What to say:**
+> "The timetable itself is built by a deterministic scheduler — it can't produce a clash or a wrong credit count. The AI is used only to understand your plain-English changes and re-plan. So it's both trustworthy and conversational. And it's not a one-week template — it's the entire six-month calendar, holidays excluded, exportable as a branded PDF."
+
+---
+
+## 5. Beyond the 7 — proves it generalizes (mention, optionally show)
 
 - **Proactive AI briefing** on every dashboard — greets each persona with what needs attention *before they ask* (grounded, role-specific).
 - **Everyday self-service:** "show my fees / marks / attendance / timetable / my teachers / exam schedule" — answers **and opens the page**.
@@ -197,15 +229,39 @@ Four guarantees baked in (§6 governance):
 
 ---
 
-## 7. Suggested demo order (7–8 min)
+## 7. THE STORYLINE (say it as a narrative, ~8–10 min)
 
-1. **Login screen** → show the 9 roles.
-2. **Log in as Registrar** → point at the **proactive briefing** (it already knows the day's issues).
-3. **UC6 Exam Eligibility** (the wow — cross-module).
-4. **UC1 At-Risk → mentor briefs** → open **Approvals** to show the queued action.
-5. **UC3 Elective Forecast** as HOD (the competitor differentiator).
-6. **UC5 Permission** — student refused, admin allowed (trust).
-7. **UC2 / UC4** if time.
-8. Close on **Governance / Audit log** + the one-line pitch.
+**Act 1 — "It's private and it's real."**
+Open the URL → password gate → "This is a locked private preview; content is confidential." Enter `kelltonisbest`. Land on the login → "Nine real roles — VC, Registrar, Dean, HOD, Faculty, Finance, Exam Officer, Warden, Student. Same product, different eyes."
 
-> Tip: run UC1/UC4/UC6 as **Registrar/Admin**, UC3 as **HOD**, UC2 as **Finance**, UC5 as **Student then Admin** — that's where each reads cleanest.
+**Act 2 — "It already knows my day."** (Registrar)
+Point at the **proactive briefing** before touching anything: pending requests, at-risk students, fee dues, elective capacity, NAAC gaps. "It surfaced what needs me before I asked. That's AI-native, not a chatbot bolted on."
+
+**Act 3 — "One question, real work."** (the cross-module wow)
+Run **UC6 Exam Eligibility** → "who's debarred and why, then hall tickets for the eligible." → 7 eligible / 5 debarred with reasons → open **Approvals** to show the hall-tickets waiting for a human. "It read three systems — attendance, fees, registration — decided, and staged the action for approval. Nothing happens to a student without a human."
+
+**Act 4 — "It plans, it doesn't just answer."** (HOD)
+Run **UC3 Elective Forecast** → predict demand → capacity breach → extra section → free faculty, one turn. "Competitors demo a single-student lookup. This is a planning decision."
+
+**Act 5 — "You can trust it with student data."**
+**UC5 Permission**: student asks another student's marks → refused; admin asks → answered. "Permissions are enforced at the tool layer — a student can't even reach it. And ask it something with no data" → *"average student height"* → it **refuses instead of fabricating.**
+
+**Act 6 — "The showpiece."** (Admin → AI Timetable Prep)
+Run **UC7**: set students/credits/dates/holidays → Generate → weekly grid → flip to **Full Semester** (6 months, holidays excluded, hours tracked) → **Download the branded PDF** → then **refine in plain English** ("reduce this credit, this faculty is unavailable Monday") and regenerate live. "Weeks of manual scheduling → minutes, correct by construction, editable by conversation."
+
+**Close — "Why this is different."**
+"Every answer is grounded in your data and cited. Every action needs approval. Everything's audited. Swap our demo database for your live SIS and nothing in the AI layer changes. That's an AI-native ERP — not AI-flavored."
+
+---
+
+## 8. Quick demo order (if short on time)
+
+1. Gate (`kelltonisbest`) → login (9 roles).
+2. **Registrar** → proactive briefing.
+3. **UC6** Exam Eligibility → Approvals queue.
+4. **UC7** AI Timetable Prep → Full Semester → PDF → AI refine. *(the showpiece)*
+5. **UC3** Elective Forecast (HOD).
+6. **UC5** Permission (Student → Admin) + refuse-when-ungrounded.
+7. **UC1 / UC2 / UC4** if time.
+
+> Roles for cleanest reads: UC1/UC4/UC6/UC7 as **Registrar/Admin**, UC3 as **HOD**, UC2 as **Finance**, UC5 as **Student then Admin**.
