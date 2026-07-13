@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/store";
 import { useToast } from "@/components/ui/Toast";
@@ -156,6 +156,9 @@ export default function DashboardPage() {
   const confirm = useConfirm();
   const [activeInsight, setActiveInsight] = useState<number | null>(null);
   const [busyAction, setBusyAction] = useState(false);
+  // Time-of-day greeting computed client-side after mount (avoids SSR/UTC hydration mismatch).
+  const [dayPart, setDayPart] = useState("day");
+  useEffect(() => { const h = new Date().getHours(); setDayPart(h < 12 ? "morning" : h < 17 ? "afternoon" : "evening"); }, []);
 
   const runInsight = async (action: string) => {
     if (action === "View defaulters") { router.push("/dashboard/fees"); return; }
@@ -213,7 +216,7 @@ export default function DashboardPage() {
               fontWeight: 800, letterSpacing: "-0.04em",
               color: "white", lineHeight: 1,
             }}>
-              Good morning, {user?.name.split(" ")[0]} 👋
+              Good {dayPart}, {(user?.name || "").replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/, "").split(" ")[0]} 👋
             </span>
           </div>
           <div className="fade-up fade-up-1" style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginTop: 8 }}>
