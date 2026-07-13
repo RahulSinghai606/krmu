@@ -13,18 +13,24 @@ export function VoiceOrb() {
   const recRef = useRef<any>(null);
   const finalRef = useRef("");
   const startedRef = useRef(false);
+  const silenceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const SR = (typeof window !== "undefined") && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
     if (!SR) { setSupported(false); return; }
     const rec = new SR();
-    rec.lang = "en-IN"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    // continuous + our own silence window — a natural mid-sentence pause must NOT auto-send.
+    rec.lang = "en-IN"; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
     rec.onresult = (e: any) => {
       let txt = "";
       for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
       finalRef.current = txt; setTranscript(txt);
+      // Reset the silence window on every bit of speech; only ~3s of true silence ends the turn.
+      if (silenceRef.current) clearTimeout(silenceRef.current);
+      silenceRef.current = setTimeout(() => { try { rec.stop(); } catch { /* */ } }, 2800);
     };
     rec.onend = () => {
+      if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
       startedRef.current = false;
       setListening(false);
       const t = finalRef.current.trim();

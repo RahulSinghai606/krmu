@@ -7,6 +7,8 @@ export function MicButton({ onTranscript, onFinal, size = 36 }: { onTranscript: 
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(true);
   const recRef = useRef<any>(null);
+  const textRef = useRef("");
+  const silenceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const SR = (typeof window !== "undefined") && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
@@ -14,14 +16,23 @@ export function MicButton({ onTranscript, onFinal, size = 36 }: { onTranscript: 
     const rec = new SR();
     rec.lang = "en-IN";
     rec.interimResults = true;
-    rec.continuous = false;
+    // continuous + our own silence window — a natural mid-sentence pause must NOT auto-send.
+    rec.continuous = true;
     rec.onresult = (e: any) => {
       let txt = "";
       for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+      textRef.current = txt;
       onTranscript(txt);
-      if (e.results[e.results.length - 1].isFinal && onFinal) onFinal(txt);
+      if (silenceRef.current) clearTimeout(silenceRef.current);
+      silenceRef.current = setTimeout(() => { try { rec.stop(); } catch { /* */ } }, 2800);
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      if (silenceRef.current) { clearTimeout(silenceRef.current); silenceRef.current = null; }
+      setListening(false);
+      const t = textRef.current.trim();
+      textRef.current = "";
+      if (t && onFinal) onFinal(t);
+    };
     rec.onerror = () => setListening(false);
     recRef.current = rec;
     return () => { try { rec.abort(); } catch { /* */ } };
@@ -32,8 +43,8 @@ export function MicButton({ onTranscript, onFinal, size = 36 }: { onTranscript: 
   const toggle = () => {
     const rec = recRef.current;
     if (!rec) return;
-    if (listening) { rec.stop(); setListening(false); }
-    else { try { rec.start(); setListening(true); } catch { /* already running */ } }
+    if (listening) { rec.stop(); }                       // tap again = done speaking → sends
+    else { textRef.current = ""; try { rec.start(); setListening(true); } catch { /* already running */ } }
   };
 
   return (
