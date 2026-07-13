@@ -193,7 +193,52 @@ Four guarantees baked in (§6 governance):
 
 ---
 
-## 5. Beyond the 7 — proves it generalizes (mention, optionally show)
+### UC8 · Zero-Back-Office University  (OPEX story — 3 agents)
+**Say:** "A university your size spends huge headcount on certificates, verification, and follow-ups. Here's that office, automated."
+
+**A · Document Issuance** — *Student then Registrar*
+- Student AI: **"I need a bonafide certificate for my visa application"** → files it, eligibility auto-checked (fees, library dues, disciplinary hold)
+- Registrar AI: **"issue a bonafide certificate for Priya Sharma"** → issued + **digitally signed with a verification code**
+- Open **`/verify/<code>`** (no login) → shows **AUTHENTIC** — a visa officer can verify it. *5–7 days → under 5 minutes.*
+- Try Arjun (library due) / Rohit (disciplinary) → **blocked with the reason.**
+
+**B · Admission Document Forensics** — *Registrar → sidebar "Admission Forensics"*
+- Upload a marksheet → **real Error-Level-Analysis (heatmap) + AI-vision OCR** → verdict clean / review / **suspected forgery** with concerns
+- AI: **"show flagged admission documents"** → lists them. **No ERP vendor detects forged documents at admission — unique claim.**
+
+**C · Committee & Governance** — *Registrar/Dean → sidebar "Committee & Governance"*
+- Paste minutes → **Process with AI** → auto-splits into **decisions + action items (owner, due) + agenda**
+- AI: **"what committee tasks are overdue?"** → finds them; **"chase the overdue tasks"** → approval. Filing cabinet → execution engine.
+
+**What to say:**
+> "Your registrar's office scales without hiring — and you're the only one who can prove a submitted marksheet is genuine before the student ever enrolls."
+
+---
+
+### UC9 · Student Success Intelligence  (enrollment-to-employment — 3 agents, the chairman's KPIs)
+**Sidebar → Student Success** (Registrar/Admin/Dean/Finance)
+
+**A · Admission Funnel Agent** (revenue)
+- AI: **"who should I call today?"** → ranked leads with the *why* (hot source, applied, going cold)
+- **"draft a follow-up for <lead>"** → AI-personalized email/SMS → approval → sent. *3–5% conversion lift = crores.*
+- Page: funnel by stage + conversion %, one-click Draft/Send.
+
+**B · Dropout & Detention Early-Warning**
+- AI: **"risk profile for Rahul Pandey"** → fuses attendance + fee delay + marks → **High**, drivers, **8–10 week lead time** before it shows in results
+- **"draft an intervention for Rahul"** → **bundle** (mentor + fee-restructure + parent notification) → approval → executes. It doesn't flag, it acts.
+
+**C · Leadership Cockpit** (chairman)
+- VC/Admin AI: **"which programmes are bleeding students and why?"** → ranked with live evidence (e.g. "B.Tech ECE — 68% attendance, 1 at-risk, dues")
+- Page: programme-health cards ranked by risk.
+
+**What to say:**
+> "This is tied to the three things you're accountable for — enrolment revenue, retention, and NAAC/NIRF outcomes. Every competitor shows you dashboards; this predicts who'll convert and who'll drop out, and drafts the action."
+
+**Under the hood (all UC8/UC9):** real Prisma tables (Lead, Committee/Meeting/ActionItem, AdmissionDocument, certificate signing + student holds), deterministic explainable scoring, Azure for language + vision OCR, real ELA (sharp). Every write → approval queue → audit. Eval suite covers them (16/16).
+
+---
+
+## 5. Beyond the 9 — proves it generalizes (mention, optionally show)
 
 - **Proactive AI briefing** on every dashboard — greets each persona with what needs attention *before they ask* (grounded, role-specific).
 - **Everyday self-service:** "show my fees / marks / attendance / timetable / my teachers / exam schedule" — answers **and opens the page**.
@@ -249,6 +294,12 @@ Run **UC3 Elective Forecast** → predict demand → capacity breach → extra s
 **Act 6 — "The showpiece."** (Admin → AI Timetable Prep)
 Run **UC7**: set students/credits/dates/holidays → Generate → weekly grid → flip to **Full Semester** (6 months, holidays excluded, hours tracked) → **Download the branded PDF** → then **refine in plain English** ("reduce this credit, this faculty is unavailable Monday") and regenerate live. "Weeks of manual scheduling → minutes, correct by construction, editable by conversation."
 
+**Act 7 — "The chairman's numbers."** (Admin → Student Success)
+**UC9**: *"who should I call today?"* (funnel/revenue) → *"risk profile for Rahul → draft the intervention"* (retention) → *"which programmes are bleeding students and why?"* (cockpit). "Enrolment, retention, NAAC — the three things you're accountable for."
+
+**Act 8 — "Zero back-office."** (Student → Registrar)
+**UC8**: student asks for a bonafide → registrar issues & signs → open **/verify/<code>** live. Then **Admission Forensics** — upload a marksheet, watch the **forgery heatmap**. "Your registrar's office scales without hiring; nobody else catches forged documents at admission."
+
 **Close — "Why this is different."**
 "Every answer is grounded in your data and cited. Every action needs approval. Everything's audited. Swap our demo database for your live SIS and nothing in the AI layer changes. That's an AI-native ERP — not AI-flavored."
 
@@ -259,9 +310,10 @@ Run **UC7**: set students/credits/dates/holidays → Generate → weekly grid �
 1. Gate (`kelltonisbest`) → login (9 roles).
 2. **Registrar** → proactive briefing.
 3. **UC6** Exam Eligibility → Approvals queue.
-4. **UC7** AI Timetable Prep → Full Semester → PDF → AI refine. *(the showpiece)*
-5. **UC3** Elective Forecast (HOD).
-6. **UC5** Permission (Student → Admin) + refuse-when-ungrounded.
-7. **UC1 / UC2 / UC4** if time.
+4. **UC7** AI Timetable Prep → Full Semester → PDF → AI refine. *(showpiece)*
+5. **UC9** Student Success → who-to-call → risk+intervention → cockpit. *(chairman's KPIs)*
+6. **UC8** Zero-Back-Office → bonafide issue + /verify → forgery forensics. *(OPEX + unique claim)*
+7. **UC5** Permission (Student → Admin) + refuse-when-ungrounded.
+8. **UC3 / UC1 / UC2 / UC4** if time.
 
-> Roles for cleanest reads: UC1/UC4/UC6/UC7 as **Registrar/Admin**, UC3 as **HOD**, UC2 as **Finance**, UC5 as **Student then Admin**.
+> Roles for cleanest reads: UC1/UC4/UC6/UC7/UC9 as **Registrar/Admin**, UC3 as **HOD**, UC2/UC9-funnel as **Finance/Registrar**, UC5/UC8-request as **Student**, UC8-issue as **Registrar**.
